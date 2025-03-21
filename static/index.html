@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Inquiry Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        #container {
+            width: 400px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #fff;
+            text-align: left;
+        }
+        .message {
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .user {
+            background-color: #d1e7dd;
+            text-align: right;
+        }
+        .bot {
+            background-color: #f8d7da;
+            text-align: left;
+        }
+        input, select, button {
+            margin-top: 10px;
+            padding: 10px;
+            width: 100%;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>AI Inquiry Chatbot</h2>
+
+    <div id="service-selection">
+        <h3>Select a Service</h3>
+        <button onclick="selectService('restaurant')">Restaurant Inquiry</button>
+        <button onclick="selectService('appointment')">Doctor Inquiry</button>
+    </div>
+
+    <div id="auth-section" style="display:none;">
+        <h3>Login / Signup</h3>
+        <input type="email" id="email" placeholder="Enter email">
+        <input type="password" id="password" placeholder="Enter password">
+        <button onclick="authenticate('signup')">Signup</button>
+        <button onclick="authenticate('login')">Login</button>
+        <p id="auth-message"></p>
+    </div>
+
+    <div id="chat-section" style="display:none;">
+        <h3>Ask Your Questions</h3>
+        <div id="container">
+            <div id="messages"></div>
+            <input type="text" id="user-query" placeholder="Type your question...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let token = "";
+        let selectedService = "";
+
+        function selectService(service) {
+            selectedService = service;
+            document.getElementById("service-selection").style.display = "none";
+            document.getElementById("auth-section").style.display = "block";
+        }
+
+        async function authenticate(type) {
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const endpoint = type === "signup" ? "/signup" : "/login";
+
+            const response = await fetch("http://127.0.0.1:8000" + endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                token = data.access_token || "";
+                localStorage.setItem("token", token);
+                document.getElementById("auth-message").innerText = type === "signup"
+                    ? "Signup successful! Please login."
+                    : "Login successful!";
+                document.getElementById("auth-section").style.display = "none";
+                document.getElementById("chat-section").style.display = "block";
+            } else {
+                document.getElementById("auth-message").innerText = data.detail;
+            }
+        }
+
+        async function sendMessage() {
+            const query = document.getElementById("user-query").value;
+            if (!query.trim()) return;
+
+            displayMessage(query, "user");
+
+            const response = await fetch(`http://127.0.0.1:8000/chat?query=${query}&mode=${selectedService}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                }
+            });
+
+            const data = await response.json();
+            displayMessage(data.response, "bot");
+            document.getElementById("user-query").value = "";
+        }
+
+        function displayMessage(text, sender) {
+            const messages = document.getElementById("messages");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+            messages.appendChild(msgDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
+
+</body>
+</html>
